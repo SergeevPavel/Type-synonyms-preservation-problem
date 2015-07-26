@@ -42,4 +42,25 @@ strConcat = (++)
 
 addABC = (++) ("ABC" :: String) -- [Char] -> [Char]
 
+-- reverse :: [a] -> [a]
 cba = reverse ("abc" :: String) -- [Char]
+
+-- Example 5.
+--
+
+data MyType a = MyType a
+
+type MyTS = MyType Int
+
+nomodify (MyType x) = MyType $ x -- MyType a -> MyType a
+
+term42 = nomodify (MyType 42 :: MyTS) -- MyType Int
+
+-- Example 6.
+--
+
+type FTS = Bool -> Bool
+
+fnomodify f x = f x -- (a -> b) -> (a -> b)
+
+termNot = fnomodify (not :: FTS) -- Bool -> Bool
