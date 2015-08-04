@@ -38,6 +38,8 @@ data Type    =  TVar String
              |  TFun Type Type
              deriving (Eq, Ord)
 
+data TypeSynonym = TypeSynonym String Type
+
 data Scheme  =  Scheme [String] Type
 
 class Types a where
@@ -171,7 +173,7 @@ ti env exp@(EList Nil) =
     do  tv <- newTyVar "a"
         return (nullSubst, TList tv, exp)
 
-ti env (EList (Cons e1 e2)) = 
+ti env (EList (Cons e1 e2)) =
     do
         (s1, t1, e1') <- ti env e1
         (s2, t2, e2') <- ti (apply s1 env) e2
