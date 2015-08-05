@@ -19,7 +19,7 @@ data Exp     =  EVar String
              |  ELit Lit
              |  EApp Exp Exp
              |  EAbs EndoMarker String Exp
-             |  EList List
+ --            |  EList List
              |  ELet String Exp Exp
              deriving (Eq, Ord)
 
@@ -27,9 +27,11 @@ data Lit     =  LInt Integer
              |  LBool Bool
              deriving (Eq, Ord)
 
+{-
 data List    =  Nil
-             |  Cons Exp Exp
+             |  Cons
              deriving (Eq, Ord)
+-}
 
 data Type    =  TVar String
              |  TInt
@@ -42,6 +44,15 @@ data TypeSynonym = TypeSynonym String Type
 
 data Scheme  =  Scheme [String] Type
 
+typeConstructors = Map.fromList [("Nil", Scheme ["a"] $ TList $ TVar "a"),
+                                 ("Cons", Scheme ["a"] $ TFun (TVar "a") $ TFun (TList $ TVar "a") (TList $ TVar "a"))]
+
+nil :: Exp
+nil = EVar "Nil"
+
+cons :: Exp -> Exp -> Exp
+cons head tail = EApp (EApp (EVar "Cons") head) tail
+
 class Types a where
     ftv    ::  a -> Set.Set String
     apply  ::  Subst -> a -> a
@@ -51,6 +62,7 @@ instance Types Type where
     ftv TInt          =  Set.empty
     ftv TBool         =  Set.empty
     ftv (TFun t1 t2)  =  ftv t1 `Set.union` ftv t2
+    ftv (TList t)     =  ftv t
 
     apply s (TVar n)      =  case Map.lookup n s of
                                Nothing  -> TVar n
@@ -169,20 +181,9 @@ ti env (ELet x e1 e2) =
         (s2, t2, e2') <- ti (apply s1 env'') e2
         return (s1 `composeSubst` s2, t2, ELet x e1' e2')
 
-ti env exp@(EList Nil) =
-    do  tv <- newTyVar "a"
-        return (nullSubst, TList tv, exp)
-
-ti env (EList (Cons e1 e2)) =
-    do
-        (s1, t1, e1') <- ti env e1
-        (s2, t2, e2') <- ti (apply s1 env) e2
-        s3 <- mgu (TList $ apply s2 t1) t2
-        return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 t2, EList (Cons e1' e2'))
-
 typeInference :: Map.Map String Scheme -> Exp -> TI (Type, Exp)
 typeInference env e =
-    do  (s, t, term) <- ti (TypeEnv env) e
+    do  (s, t, term) <- ti (TypeEnv $ env `Map.union` typeConstructors) e
         return ((apply s t), term)
 
 
@@ -236,22 +237,22 @@ e7  =  (
 
 e8  =  (
         Map.empty,
-        EList $ Cons (ELit (LInt 42)) (EList Nil)
+        nil
        )
 
 e9  =  (
         Map.empty,
-        EList $ Cons (ELit $ LInt 42) (EList $ Cons (ELit $ LInt 43) (EList Nil))
+        cons (ELit $ LInt 42) (cons (ELit $ LInt 43) nil)
        )
 
 e10 =  (
         Map.empty,
-        EList $ Cons (ELit $ LInt 42) (EList $ Cons (ELit $ LBool True) (EList Nil))
+        cons (ELit $ LInt 42) (cons (ELit $ LBool True) nil)
        )
 
 e11  =  (
         Map.empty,
-        EList $ Cons (EAbs Unknown "x" $ EVar "x") (EList $ Cons (EAbs Unknown "y" $ EVar "y") (EList Nil))
+        cons (EAbs Unknown "x" $ EVar "x") (cons (EAbs Unknown "y" $ EVar "y") nil)
        )
 
 test :: (Map.Map String Scheme, Exp) -> IO ()
@@ -295,8 +296,8 @@ prExp (EApp e1 e2)            =   prExp e1 PP.<+> prParenExp e2
 prExp (EAbs isEndo n e)       =   PP.char '\\' PP.<+> PP.text (show isEndo) PP.<+> PP.text n PP.<+>
                                   PP.text "->" PP.<+>
                                   prExp e
-prExp (EList (Nil))           =   PP.text "Nil"
-prExp (EList (Cons e1 e2))    =   PP.text "Cons" PP.<+> prExp e1 PP.<+> prExp e2
+--prExp (EList (Nil))           =   PP.text "Nil"
+--prExp (EList (Cons e1 e2))    =   PP.text "Cons" PP.<+> prExp e1 PP.<+> prExp e2
 
 prParenExp    ::  Exp -> PP.Doc
 prParenExp t  =   case t of
