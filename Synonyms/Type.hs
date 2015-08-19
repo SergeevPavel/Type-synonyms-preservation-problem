@@ -6,10 +6,7 @@ data Type = TVar String
           | TBool
           | TList Type
           | TPair Type Type
-          | TSynonym String
+          | TSynonym String Type -- Synonyms without type variables
           deriving (Show, Eq)
-
-data SynonymCtx = Map String Type
-
 
 

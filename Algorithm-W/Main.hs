@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Control.Monad.Trans.Except
+import Control.Monad.Error.Class
 import Control.Monad.Reader
 import Control.Monad.State
 
