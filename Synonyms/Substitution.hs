@@ -19,6 +19,9 @@ removeFromSubst n (Subst s) = Subst $ Map.delete n s
 singletonSubst :: String -> Type -> Subst
 singletonSubst s t = Subst $ Map.singleton s t
 
+fromListSubst :: [(String, Type)] -> Subst
+fromListSubst l = Subst $ Map.fromList l
+
 instance Monoid Subst where
     mempty = nullSubst
     mappend = composeSubst

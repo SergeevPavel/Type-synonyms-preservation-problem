@@ -8,5 +8,3 @@ data Type = TVar String
           | TPair Type Type
           | TSynonym String Type -- Synonyms without type variables
           deriving (Show, Eq)
-
-
