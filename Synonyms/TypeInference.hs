@@ -31,7 +31,7 @@ data Term = Term
         } deriving (Show, Eq)
 
 -- Scheme type
-data Scheme = Scheme [String] Type
+data Scheme = Scheme [String] Type deriving (Show, Eq)
 
 instance Types Scheme where
     ftv (Scheme vars ty) = ftv ty `Set.difference` Set.fromList vars
@@ -39,7 +39,7 @@ instance Types Scheme where
     apply su (Scheme vars ty) = Scheme vars (apply (foldr removeFromSubst su vars) ty)
 
 -- Type environment type
-data TypeEnv = TypeEnv (Map.Map String Scheme)
+data TypeEnv = TypeEnv (Map.Map String Scheme) deriving (Show, Eq)
 
 instance Types TypeEnv where
     ftv (TypeEnv env) = ftv (Map.elems env)
@@ -131,5 +131,7 @@ tiLit (LInt _)   =  return (nullSubst, TInt)
 tiLit (LBool _)  =  return (nullSubst, TBool)
 
 -- Runner
---typeInference :: TypeEnv -> Expr -> (TypeEnv, Type)
---typeInference env expr = runStateT (runReaderT (runExceptT (ti expr)) env) 0
+typeInference :: TypeEnv -> Expr -> Either String (TypeEnv, Type)
+typeInference env expr = case evalState (runReaderT (runExceptT (ti expr)) env) 0 of
+                            Left error     -> Left error
+                            Right (su, ty) -> Right (apply su env, ty)
