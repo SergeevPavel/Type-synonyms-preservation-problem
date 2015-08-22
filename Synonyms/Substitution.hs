@@ -35,20 +35,20 @@ instance Types a => Types [a] where
     apply su = map $ apply su
 
 instance Types Type where
-    ftv (TVar id)       = Set.singleton id
+    ftv (TVar n)       = Set.singleton n
     ftv (ty1 :-> ty2)   = ftv ty1 `Set.union` ftv ty2
     ftv (TInt)          = Set.empty
     ftv (TBool)         = Set.empty
     ftv (TList ty)      = ftv ty
     ftv (TPair ty1 ty2) = ftv ty1 `Set.union` ftv ty2
-    ftv (TSynonym _ t)  = Set.empty
+    ftv (TSynonym _ _)  = Set.empty
 
-    apply (Subst s) (TVar id) = case Map.lookup id s of
-                                                Nothing -> TVar id
+    apply (Subst s) (TVar n) = case Map.lookup n s of
+                                                Nothing -> TVar n
                                                 Just t  -> t
     apply su (t1 :-> t2)      = apply su t1 :-> apply su t2
     apply _  TInt             = TInt
     apply _  TBool            = TBool
     apply su (TList t)        = TList $ apply su t
     apply su (TPair t1 t2)    = TPair (apply su t1) (apply su t2)
-    apply su ts@(TSynonym _ t)   = ts
+    apply _ ts@(TSynonym _ _)   = ts

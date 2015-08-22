@@ -18,7 +18,6 @@ data Lit = LInt Integer
          deriving (Show, Eq)
 
 data Expr = EVar String
-          | ECon String
           | ELit Lit
           | EApp Expr Expr
           | EAbs String Expr
@@ -57,6 +56,9 @@ addToTypeEnv n t (TypeEnv env) = TypeEnv $ Map.insert n t env
 fromListTypeEnv :: [(String, Scheme)] -> TypeEnv
 fromListTypeEnv l = TypeEnv $ Map.fromList l
 
+unionTypeEnv :: TypeEnv -> TypeEnv -> TypeEnv
+unionTypeEnv (TypeEnv env) (TypeEnv env') = TypeEnv $ Map.union env env'
+
 -- Type inference context
 type TI a = ExceptT String (ReaderT TypeEnv (State Int)) a
 
@@ -89,12 +91,18 @@ mgu (TPair t1 t2) (TPair t1' t2') = do
     su1 <- mgu t1 t1'
     su2 <- mgu (apply su1 t2) (apply su1 t2')
     return (su1 `composeSubst` su2)
+mgu t1 t2 = throwError $ "types do not unify: " ++ show t1 ++
+                                " vs. " ++ show t2
 
 varBind :: (MonadError String m) => String -> Type -> (m Subst)
 varBind u t  | t == TVar u           =  return nullSubst
              | u `Set.member` ftv t  =  throwError $ "occur check fails: " ++ u ++
                                          " vs. " ++ show t
              | otherwise             =  return $ singletonSubst u t
+
+checkIsEndo :: Type -> Bool
+checkIsEndo (tl :-> tr) = tl == tr
+checkIsEndo _           = False
 
 -- Inference
 ti :: Expr -> TI (Subst, Type)
@@ -108,13 +116,13 @@ ti (ELit l) = tiLit l
 ti (EAbs n e) = do
         tv <- newTyVar "a"
         env <- ask
-        let env' = env
         (s1, t1) <- local (addToTypeEnv n (Scheme [] tv)) (ti e)
         let t2 = apply s1 tv
         return (s1, t2 :-> t1)
 ti (EApp e1 e2) = do
         tv <- newTyVar "a"
         (s1, t1) <- ti e1
+        --let endoMarker = checkIsEndo t1
         (s2, t2) <- local (apply s1) (ti e2)
         s3 <- mgu (apply s2 t1) (t2 :-> tv)
         return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
@@ -132,6 +140,22 @@ tiLit (LBool _)  =  return (nullSubst, TBool)
 
 -- Runner
 typeInference :: TypeEnv -> Expr -> Either String (TypeEnv, Type)
-typeInference env expr = case evalState (runReaderT (runExceptT (ti expr)) env) 0 of
-                            Left error     -> Left error
+typeInference env expr = case evalState (runReaderT (runExceptT (ti expr)) env') 0 of
+                            Left err     -> Left err
                             Right (su, ty) -> Right (apply su env, ty)
+                         where
+                            env' = env `unionTypeEnv` constructors
+
+-- Type constructors
+listConstructors :: TypeEnv
+listConstructors = fromListTypeEnv [ ("LNil", Scheme ["a"] (TList $ TVar "a"))
+                                   , ("LCons", Scheme ["a"] (TVar "a" :-> (TList $ TVar "a") :-> (TList $ TVar "a")))
+                                   ]
+
+pairConstructors :: TypeEnv
+pairConstructors = fromListTypeEnv [ ("PCons", Scheme ["a", "b"] (TVar "a" :-> TVar "b" :-> TPair (TVar "a") (TVar "b"))) ]
+
+constructors :: TypeEnv
+constructors = foldr1 unionTypeEnv [ listConstructors
+                                   , pairConstructors
+                                   ]
