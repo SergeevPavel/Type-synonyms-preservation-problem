@@ -8,6 +8,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Trans.Except
 import Control.Monad.Error.Class
+import Control.Exception.Base
 
 import Type
 import Substitution
@@ -15,6 +16,7 @@ import Substitution
 --Expression type
 data Lit = LInt Integer
          | LBool Bool
+         | LChar Char
          deriving (Show, Eq)
 
 data Expr = EVar String
@@ -122,10 +124,17 @@ ti (EAbs n e) = do
 ti (EApp e1 e2) = do
         tv <- newTyVar "a"
         (s1, t1) <- ti e1
-        --let endoMarker = checkIsEndo t1
+        let endoMarker = checkIsEndo t1
         (s2, t2) <- local (apply s1) (ti e2)
         s3 <- mgu (apply s2 t1) (t2 :-> tv)
-        return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
+        let su = s3 `composeSubst` s2 `composeSubst` s1
+        let ty = apply s3 tv
+        if endoMarker && isTypeSynonym t2
+            then do
+                let (TSynonym syn t2') = t2
+                return (su, assert (t2' == ty) t2)
+            else do
+                return (su, ty)
 --ti env (ELet x e1 e2) =
 --    do  (s1, t1, e1') <- ti env e1
 --        let TypeEnv env' = remove env x
@@ -137,6 +146,7 @@ ti (EApp e1 e2) = do
 tiLit :: Lit -> TI (Subst, Type)
 tiLit (LInt _)   =  return (nullSubst, TInt)
 tiLit (LBool _)  =  return (nullSubst, TBool)
+tiLit (LChar _)  =  return (nullSubst, TChar)
 
 -- Runner
 typeInference :: TypeEnv -> Expr -> Either String (TypeEnv, Type)

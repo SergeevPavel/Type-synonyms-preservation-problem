@@ -39,6 +39,7 @@ instance Types Type where
     ftv (ty1 :-> ty2)   = ftv ty1 `Set.union` ftv ty2
     ftv (TInt)          = Set.empty
     ftv (TBool)         = Set.empty
+    ftv (TChar)         = Set.empty
     ftv (TList ty)      = ftv ty
     ftv (TPair ty1 ty2) = ftv ty1 `Set.union` ftv ty2
     ftv (TSynonym _ _)  = Set.empty
@@ -49,6 +50,7 @@ instance Types Type where
     apply su (t1 :-> t2)      = apply su t1 :-> apply su t2
     apply _  TInt             = TInt
     apply _  TBool            = TBool
+    apply _  TChar            = TChar
     apply su (TList t)        = TList $ apply su t
     apply su (TPair t1 t2)    = TPair (apply su t1) (apply su t2)
     apply _ ts@(TSynonym _ _)   = ts
