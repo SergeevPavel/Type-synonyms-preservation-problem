@@ -12,6 +12,7 @@ import Control.Exception.Base
 
 import Type
 import Substitution
+import PrettyPrint
 
 --Expression type
 data Lit = LInt Integer
@@ -161,7 +162,6 @@ listConstructors :: TypeEnv
 listConstructors = fromListTypeEnv [ ("LNil", Scheme ["a"] (TList $ TVar "a"))
                                    , ("LCons", Scheme ["a"] (TVar "a" :-> (TList $ TVar "a") :-> (TList $ TVar "a")))
                                    ]
-
 pairConstructors :: TypeEnv
 pairConstructors = fromListTypeEnv [ ("PCons", Scheme ["a", "b"] (TVar "a" :-> TVar "b" :-> TPair (TVar "a") (TVar "b"))) ]
 
@@ -169,3 +169,26 @@ constructors :: TypeEnv
 constructors = foldr1 unionTypeEnv [ listConstructors
                                    , pairConstructors
                                    ]
+-- List constructors helpers
+listNilExpr :: Expr
+listNilExpr = EVar "LNil"
+
+listConsExpr :: Expr -> Expr -> Expr
+listConsExpr x xs = EApp (EApp (EVar "LCons") x) xs
+
+listExprFromList :: [Expr] -> Expr
+listExprFromList = foldr listConsExpr listNilExpr
+
+-- Pair constructors helpers
+pairConsExpr :: Expr -> Expr -> Expr
+pairConsExpr a b = EApp (EApp (EVar "PCons") a) b
+
+-- Primitive type constructors helpers
+intExpr :: Integer -> Expr
+intExpr x = ELit $ LInt x
+
+boolExpr :: Bool -> Expr
+boolExpr b = ELit $ LBool b
+
+charExpr :: Char -> Expr
+charExpr c = ELit $ LChar c

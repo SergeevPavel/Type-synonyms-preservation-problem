@@ -8,7 +8,7 @@ data Type = TVar String
           | TList Type
           | TPair Type Type
           | TSynonym String Type -- Synonyms without type variables
-          deriving (Show, Eq)
+          deriving (Eq)
 
 infixr 7 :->
 
